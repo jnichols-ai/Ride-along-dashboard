@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  :root{
+    color-scheme: light;
+    --bg:#ffffff; --panel:#fafafa; --panel2:#f3f3f3; --line:#e3e3e3;
+    --red:#d40000; --red-dim:#fdeaea;
+    --green:#0a8f4f; --amber:#b06b00; --fail:#c01030;
+    --text:#16181a; --muted:#6b6f76;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);}
+  a{color:var(--red);text-decoration:none;font-weight:600;}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 18px 50px;}
+  header{padding:18px 0 14px;border-bottom:2px solid var(--text);margin-bottom:16px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .mark{width:36px;height:36px;border-radius:8px;background:var(--text);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;}
+  .brand h1{font-size:18px;margin:0;letter-spacing:.2px;}
+  .brand p{margin:0;font-size:11px;color:var(--red);text-transform:uppercase;letter-spacing:.6px;font-weight:700;}
+  .controls{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center;}
+  select, button{background:#fff;color:var(--text);border:1.5px solid var(--text);border-radius:8px;padding:9px 12px;font-size:13px;}
+  select{flex:1;min-width:200px;font-weight:600;}
+  button{cursor:pointer;font-weight:700;}
+  button.primary{background:var(--red);border-color:var(--red);color:#fff;}
+  .meta-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--muted);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px;}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--text);border-radius:10px;padding:14px;}
+  .kpi .num{font-size:26px;font-weight:800;}
+  .kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+  .kpi.accent{border-left-color:var(--red);background:var(--red-dim);}
+  .aiInsight{background:var(--red-dim);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:8px;padding:10px 12px;margin:0 0 16px;font-size:13px;line-height:1.5;color:var(--text);font-style:italic;}
+  .aiInsight::before{content:"✨ AI summary: ";font-style:normal;font-weight:700;color:var(--red);}
+  section{margin-bottom:28px;}
+  section h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--text);margin:0 0 4px;display:flex;align-items:center;gap:8px;font-weight:800;}
+  section h2::before{content:"";width:4px;height:14px;background:var(--red);border-radius:2px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;}
+  .barRow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .barRow:last-child{margin-bottom:0;}
+  .barRow .lbl{width:150px;font-size:12px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .barTrack{flex:1;height:10px;background:#e8e8e8;border-radius:6px;overflow:hidden;}
+  .barFill{height:100%;border-radius:6px;}
+  .barVal{width:54px;text-align:right;font-size:12px;color:var(--muted);flex-shrink:0;font-weight:700;}
+  .trendChart{display:flex;align-items:flex-end;gap:6px;height:110px;}
+  .trendBar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .trendBar .bar{width:100%;background:var(--red);border-radius:4px 4px 0 0;min-height:2px;}
+  .trendBar .tlabel{font-size:9px;color:var(--muted);margin-top:4px;white-space:nowrap;}
+  .trendBar .tval{font-size:10px;font-weight:700;margin-bottom:3px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:var(--text);font-weight:800;font-size:11px;text-transform:uppercase;padding:7px 8px;border-bottom:2px solid var(--text);cursor:pointer;white-space:nowrap;}
+  td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}
+  .pill.pass{background:#e4f6ec;color:var(--green);}
+  .pill.fail{background:#fbe6ea;color:var(--fail);}
+  .pill.warn{background:#fdf1de;color:var(--amber);}
+  .feedItem{border-left:3px solid var(--red);padding:8px 10px;background:var(--panel2);border-radius:0 8px 8px 0;margin-bottom:8px;}
+  .feedItem .top{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;}
+  .feedItem .flags span{display:inline-block;margin:2px 4px 0 0;}
+  .feedItem .note{font-size:12px;color:#333;margin-top:4px;}
+  .stars{color:var(--amber);font-size:14px;letter-spacing:1px;}
+  .scrollx{overflow-x:auto;}
+  .empty{color:var(--muted);font-size:12.5px;padding:14px 0;text-align:center;}
+  .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:50vh;color:var(--muted);gap:10px;}
+  .spinner{width:28px;height:28px;border-radius:50%;border:3px solid #e3e3e3;border-top-color:var(--red);animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .sub{font-size:11px;color:var(--muted);margin-top:-2px;margin-bottom:10px;}
+  .filterBar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;padding:10px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;}
+  .filterBar .fGroup{display:flex;flex-direction:column;gap:3px;min-width:130px;flex:1;}
+  .filterBar label{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700;}
+  .filterBar select, .filterBar input{padding:7px 9px;font-size:12.5px;font-weight:500;min-width:0;width:100%;}
+  .filterBar button{padding:7px 12px;font-size:12px;align-self:flex-end;white-space:nowrap;}
+  .filterBar .fGroup.hidden{display:none;}
+  .activeFilters{font-size:11px;color:var(--red);font-weight:700;margin-top:4px;}
+  .stackBarRow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .stackBarRow:last-child{margin-bottom:0;}
+  .stackBarRow .lbl{width:170px;font-size:12px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .stackBar{flex:1;height:12px;background:#e8e8e8;border-radius:6px;overflow:hidden;display:flex;}
+  .stackBar .seg{height:100%;}
+  .seg.pass{background:var(--green);}
+  .seg.warn{background:var(--amber);}
+  .seg.fail{background:var(--fail);}
+  .stackLegend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap;}
+  .stackLegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+  .synBtn{padding:4px 10px;font-size:11px;border-radius:6px;}
+  .synBox{margin-top:8px;font-size:12.5px;line-height:1.5;}
+  .synBox h4{margin:10px 0 2px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--red);}
+  .synBox h4:first-child{margin-top:0;}
+  .synBox p{margin:0 0 6px;}
+  .aiSynopsis{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">RA</div>
+      <div>
+        <h1>Ride Along Dashboard</h1>
+        <p>Frontline Pest Control · Field Quality</p>
+      </div>
+    </div>
+    <div class="controls">
+      <select id="roleSelect"><option value="">Loading…</option></select>
+      <button id="refreshBtn">↻ Refresh</button>
+    </div>
+    <div class="filterBar" id="filterBar">
+      <div class="fGroup" id="fGroup_manager">
+        <label>Manager</label>
+        <select id="f_manager"><option value="">All managers</option></select>
+      </div>
+      <div class="fGroup">
+        <label>Branch / Office</label>
+        <select id="f_office"><option value="">All branches</option></select>
+      </div>
+      <div class="fGroup">
+        <label>Technician</label>
+        <select id="f_employee"><option value="">All techs</option></select>
+      </div>
+      <div class="fGroup">
+        <label>Service</label>
+        <select id="f_service"><option value="">All services</option></select>
+      </div>
+      <div class="fGroup">
+        <label>From</label>
+        <input type="date" id="f_dateFrom" />
+      </div>
+      <div class="fGroup">
+        <label>To</label>
+        <input type="date" id="f_dateTo" />
+      </div>
+      <button id="clearFiltersBtn">Clear</button>
+    </div>
+    <div class="meta-row">
+      <span id="lastUpdated">—</span>
+      <span id="itemCount"></span>
+    </div>
+    <div class="activeFilters" id="activeFiltersLabel"></div>
+  </header>
+  <main id="app">
+    <div class="loading"><div class="spinner"></div><div>Loading live board data…</div></div>
+  </main>
+</div>
+
+<script>
+// --- Standalone (non-Cowork) bridge -----------------------------------------------------
+// The original version of this dashboard ran inside Cowork, which provides window.cowork
+// .callMcpTool() / .askClaude() for free (no token handling needed on this page). Outside
+// Cowork — e.g. this Vercel deployment — those don't exist, so this shim recreates the same
+// two methods by calling this project's own serverless functions (/api/monday, /api/ai),
+// which hold the real monday.com token and Anthropic API key server-side. Every other line
+// of dashboard code below is unchanged and talks to "window.cowork" exactly as before.
+window.cowork = window.cowork || {};
+window.cowork.callMcpTool = async function(_name, args){
+  try {
+    const r = await fetch("/api/monday", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: args.query, variables: args.variables }),
+    });
+    const json = await r.json();
+    if (!r.ok) return { isError: true, content: [{ text: json.error || "monday API error" }] };
+    return { isError: false, structuredContent: json };
+  } catch (err) {
+    return { isError: true, content: [{ text: String(err.message || err) }] };
+  }
+};
+window.cowork.askClaude = async function(prompt, data){
+  try {
+    const r = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, data }),
+    });
+    const json = await r.json();
+    if (!r.ok) return { text: "" };
+    return { text: json.text || "" };
+  } catch (err) {
+    return { text: "" };
+  }
+};
+
+const BOARD_ID = "18391482563";
+
+const COLUMN_MAP = {
+  employee: "board_relation_mkyfavcb",
+  manager: "lookup_mkyf5c2t", office: "lookup_mkyfjte3",
+  date: "date_mkyfk9e2", serviceType: "dropdown_mkyf4abk",
+  arrivedOnTime: "color_mkyftz1a", professionalGreeting: "color_mkyfpwv8",
+  professionalGreetingRating: "rating_mkyfvenm", properExplanation: "color_mkyfhex6",
+  properExplanationRating: "rating_mkyfbgn2", addressedConcerns: "color_mkyfjys8",
+  extDeWebbed: "color_mkyf9dc1", extGranular: "color_mkyfdrqk", extPerimeterSpray: "color_mkyfqthm",
+  extDust: "color_mm0nh27h", intLivingAreas: "color_mkyfvj0t", intBasement: "color_mkyfs4k5",
+  garage: "color_mkyfhyds", uniform: "color_mkyf4rjk", ppe: "color_mkyf8z73",
+  vehicleCleanlinessRating: "rating_mkyfw2es", strengthsObserved: "long_text_mkyffrkt",
+  areasToImprove: "long_text_mkyfjhdk", correctiveActionsGiven: "long_text_mkyfqbp0",
+  additionalTrainingNeeded: "long_text_mkyfwc13", equipmentWorking: "color_mkyg7e4w",
+  chemicalsOrganized: "color_mkygkhj2",
+  insectsCovered: "dropdown_mkyfj2sj", productsCovered: "dropdown_mkyf654s", equipmentUsed: "dropdown_mkyfw0qs",
+};
+
+// Full label universe for each multi-select dropdown, straight from the board's column
+// settings (minus "NONE", which is tracked separately as "nothing applied" rather than an
+// actual option). Used to compute what was covered vs. never covered for a selection.
+const INSECT_OPTIONS = ["Ant","Spiders","Stinging Insects","Cockroaches","Silverfish","Mosquitoes","Rats","Mice","Fleas","Ticks","Termites","Occasional Invaders","Gnats","Beetles","Flies","yellow jackets"];
+const PRODUCT_OPTIONS = ["Demand CS","Tandem","Advion Ant","Advion Roach","Delta Dust","Precore2625","Sentricon in ground","Sentricon AG","Glue Boards","Contrac Blox","Optiguard Roach","Optiguard Ant","Other","tempo dust","Crosscheck","Advance 375"];
+const EQUIPMENT_OPTIONS = ["Backpack Sprayer","Mosquito Mister","B&G","Storm Sprayer","Spreader","Electric Duster","De-Webbing Pole","RTU / Evo Express","Excluder","Gas Auger","bulb duster"];
+const ALL_COLUMN_IDS = Object.values(COLUMN_MAP);
+
+const CHECKLIST = [
+  { key: "arrivedOnTime", label: "Arrived On-Time", pass: ["YES"], fail: ["NO"] },
+  { key: "professionalGreeting", label: "Professional Greeting", pass: ["YES"], fail: ["NO"] },
+  { key: "properExplanation", label: "Explained Service", pass: ["YES"], fail: ["NO"] },
+  { key: "addressedConcerns", label: "Addressed Concerns", pass: ["YES"], fail: ["NO"] },
+  { key: "extDeWebbed", label: "Exterior De-Webbed", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
+  { key: "extGranular", label: "Exterior Granular", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
+  { key: "extPerimeterSpray", label: "Exterior Perimeter Spray", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
+  { key: "extDust", label: "Exterior Dust", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
+  { key: "intLivingAreas", label: "Interior Living Areas", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
+  { key: "intBasement", label: "Interior Basement", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
+  { key: "garage", label: "Garage", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
+  { key: "uniform", label: "Proper Uniform", pass: ["Yes"], fail: ["Not In FL Uniform"], warn: ["Missing parts"] },
+  { key: "ppe", label: "PPE Worn Correctly", pass: ["Yes"], fail: ["No"] },
+  { key: "equipmentWorking", label: "Equipment In Working Order", pass: ["YES"], fail: ["NO"] },
+  { key: "chemicalsOrganized", label: "Chemicals Clean & Organized", pass: ["YES"], fail: ["NO"] },
+];
+const RATINGS = [
+  { key: "professionalGreetingRating", label: "Professional Greeting" },
+  { key: "properExplanationRating", label: "Explanation Quality" },
+  { key: "vehicleCleanlinessRating", label: "Vehicle Cleanliness" },
+];
+
+let STATE = { items: [], itemsById: {}, managers: [], generatedAt: null };
+let FILTERS = { manager: "", office: "", employee: "", service: "", dateFrom: "", dateTo: "" };
+
+function $(s, r=document){ return r.querySelector(s); }
+function $all(s, r=document){ return Array.from(r.querySelectorAll(s)); }
+function normalizeDate(d){
+  if (!d || typeof d !== "string") return null;
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return m[0];
+}
+function fmtDate(d){
+  const nd = normalizeDate(d);
+  if (!nd) return "—";
+  const dt = new Date(nd+"T00:00:00");
+  if (isNaN(dt.getTime())) return "—";
+  return dt.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+}
+function monthKey(d){ const nd = normalizeDate(d); return nd ? nd.slice(0,7) : null; }
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+function classify(item, check){
+  const v = item[check.key];
+  if (v == null || v === "") return null;
+  if (check.pass.includes(v)) return "pass";
+  if (check.fail.includes(v)) return "fail";
+  if (check.warn && check.warn.includes(v)) return "warn";
+  return "warn";
+}
+function complianceRate(items, check){
+  let pass=0, total=0;
+  items.forEach(i=>{ const c=classify(i, check); if(c){ total++; if(c==="pass") pass++; } });
+  return total ? Math.round((pass/total)*100) : null;
+}
+function overallComplianceScore(items){
+  const rates = CHECKLIST.map(c => complianceRate(items, c)).filter(r => r != null);
+  if(!rates.length) return null;
+  return Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
+}
+function avgRating(items, key){
+  const vals = items.map(i=>i[key]).filter(v=>v!=null && !isNaN(v));
+  if(!vals.length) return null;
+  return (vals.reduce((a,b)=>a+b,0)/vals.length);
+}
+function stars(avg){
+  if(avg==null) return '<span class="stars">—</span>';
+  const full = Math.round(avg);
+  return `<span class="stars">${"★".repeat(full)}${"☆".repeat(5-full)}</span> <span style="color:var(--muted);font-size:11px;">${avg.toFixed(1)}</span>`;
+}
+function flagsForItem(item){
+  return CHECKLIST.map(c=>({c, status: classify(item,c)})).filter(x=>x.status==="fail" || x.status==="warn");
+}
+function hasFollowUp(item){
+  return flagsForItem(item).length > 0 || item.correctiveActionsGiven || item.additionalTrainingNeeded;
+}
+
+// Tally how often each option in a multi-select dropdown (Insects/Products/Equipment Covered)
+// shows up across a filtered item set. "NONE" is the board's own "nothing applied" sentinel,
+// not a real option, so it's stripped before counting. Anything in allOptions that never shows
+// up at all is surfaced as "never covered" for this selection.
+function coverageBreakdown(items, key, allOptions){
+  const counts = {};
+  allOptions.forEach(o => counts[o] = 0);
+  items.forEach(i => {
+    const raw = i[key];
+    if (!raw) return;
+    raw.split(",").map(s => s.trim()).filter(l => l && l !== "NONE").forEach(l => {
+      counts[l] = (counts[l] || 0) + 1;
+    });
+  });
+  const covered = Object.keys(counts).filter(o => counts[o] > 0).sort((a,b) => counts[b]-counts[a]);
+  const neverCovered = allOptions.filter(o => counts[o] === 0);
+  return { counts, covered, neverCovered };
+}
+function coverageBlock(title, bd){
+  const max = Math.max(1, ...bd.covered.map(o => bd.counts[o]));
+  return `<section><h2>${escapeHtml(title)}</h2>
+    <div class="card">
+      ${bd.covered.length ? bd.covered.map(o => barRow(o, bd.counts[o], max, "var(--red)")).join("") : `<div class="empty">None recorded yet</div>`}
+      ${bd.neverCovered.length ? `<div class="sub" style="margin-top:10px;"><b>Never recorded:</b> ${bd.neverCovered.map(o => `<span class="pill warn">${escapeHtml(o)}</span>`).join(" ")}</div>` : ""}
+    </div>
+  </section>`;
+}
+
+// "Customer Not Home" is a shared sentinel value on three otherwise-unrelated status columns
+// (no single column reliably/exclusively encodes it), so presence is derived by checking all
+// three rather than trusting one. Visits with no data on any of the three are counted separately
+// as unknown instead of being guessed into Home or Not Home.
+function customerPresence(item){
+  const known = [item.professionalGreeting, item.properExplanation, item.addressedConcerns].filter(v => v != null && v !== "");
+  if (!known.length) return null;
+  return known.includes("Customer Not Home") ? "Not Home" : "Home";
+}
+function presenceBreakdown(items){
+  let home = 0, notHome = 0, unknown = 0;
+  items.forEach(i => {
+    const p = customerPresence(i);
+    if (p === "Home") home++; else if (p === "Not Home") notHome++; else unknown++;
+  });
+  return { home, notHome, unknown };
+}
+function presenceBlock(items){
+  const p = presenceBreakdown(items);
+  const max = Math.max(1, p.home, p.notHome);
+  return `<section><h2>Customer Home vs. Not Home</h2>
+    <div class="card">
+      ${barRow("Customer Home", p.home, max, "var(--green)")}
+      ${barRow("Customer Not Home", p.notHome, max, "var(--fail)")}
+      ${p.unknown ? `<div class="sub" style="margin-top:6px;margin-bottom:0;">${p.unknown} stop${p.unknown===1?"":"s"} with no presence data recorded</div>` : ""}
+    </div>
+  </section>`;
+}
+
+// Service-area completion status, restricted to the 7 checklist entries that have a 3-way
+// pass/warn/fail scale (Complete / Missed a few spots / Not Performed to FL Standards). Blank
+// values are explicitly excluded from the counts and the denominator — per spec, a blank means
+// that service area didn't apply on that visit, not that it failed.
+const SERVICE_AREAS = CHECKLIST.filter(c => c.warn);
+function serviceCompletionChart(items){
+  return SERVICE_AREAS.map(c => {
+    let complete = 0, missed = 0, notPerformed = 0;
+    items.forEach(i => {
+      const v = i[c.key];
+      if (v == null || v === "") return;
+      if (c.pass.includes(v)) complete++;
+      else if (c.warn.includes(v)) missed++;
+      else if (c.fail.includes(v)) notPerformed++;
+    });
+    return { label: c.label, complete, missed, notPerformed, total: complete+missed+notPerformed };
+  });
+}
+function stackBarRow(row){
+  if (!row.total) return `<div class="stackBarRow"><div class="lbl" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</div><div class="sub" style="margin:0;">No data</div></div>`;
+  const pc = row.complete/row.total*100, pm = row.missed/row.total*100, pn = row.notPerformed/row.total*100;
+  return `<div class="stackBarRow">
+    <div class="lbl" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</div>
+    <div class="stackBar">
+      ${pc ? `<div class="seg pass" style="width:${pc}%" title="Complete: ${row.complete}"></div>` : ""}
+      ${pm ? `<div class="seg warn" style="width:${pm}%" title="Missed a few spots: ${row.missed}"></div>` : ""}
+      ${pn ? `<div class="seg fail" style="width:${pn}%" title="Not Performed to FL Standards: ${row.notPerformed}"></div>` : ""}
+    </div>
+    <div class="barVal">${row.total}</div>
+  </div>`;
+}
+function serviceCompletionBlock(items){
+  const rows = serviceCompletionChart(items);
+  return `<section><h2>Service Completion by Area</h2>
+    <div class="sub">Excludes visits where a service area was left blank (didn't apply that visit)</div>
+    <div class="card">
+      <div class="stackLegend"><span><i class="seg pass"></i>Complete</span><span><i class="seg warn"></i>Missed a few spots</span><span><i class="seg fail"></i>Not Performed to FL Standards</span></div>
+      ${rows.map(stackBarRow).join("")}
+    </div>
+  </section>`;
+}
+
+// Shared response-text extraction for every window.cowork.askClaude() call site — the bridge's
+// return shape isn't strictly typed, so this defensively handles a plain string, a {text}
+// object, or a {content:[{text}]} array.
+function extractAiText(res){
+  return (typeof res === "string") ? res
+    : (res && typeof res.text === "string") ? res.text
+    : (res && res.content) ? (Array.isArray(res.content) ? res.content.map(c=>c.text||"").join(" ") : String(res.content))
+    : "";
+}
+
+// Renders a plain-text AI response into the four (or five, for the aggregate synopsis) fixed
+// section headers as light HTML, so it reads like a structured writeup instead of a wall of text.
+function formatSynopsis(text){
+  const headers = ["Strengths Observed","Areas to Improve","Corrective Actions Given","Additional Training Needed","Trend / Areas of Concern Over Time"];
+  const lines = text.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  return lines.map(line => {
+    const h = headers.find(h => line.toLowerCase().startsWith(h.toLowerCase()));
+    if (h) {
+      const rest = line.slice(h.length).replace(/^[:\-\s]+/, "");
+      return `<h4>${escapeHtml(h)}</h4>` + (rest ? `<p>${escapeHtml(rest)}</p>` : "");
+    }
+    return `<p>${escapeHtml(line)}</p>`;
+  }).join("");
+}
+function monthLabel(key){
+  if(!key) return "";
+  const [y,m] = key.split("-");
+  return new Date(Number(y), Number(m)-1, 1).toLocaleDateString(undefined,{month:"short"});
+}
+function lastNMonths(n){
+  const out=[]; const now = new Date();
+  for(let i=n-1;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+  }
+  return out;
+}
+function barRow(label, value, max, color){
+  const pct = max ? Math.max(2, Math.round((value/max)*100)) : 0;
+  return `<div class="barRow"><div class="lbl" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+    <div class="barTrack"><div class="barFill" style="width:${pct}%;background:${color}"></div></div>
+    <div class="barVal">${value}</div></div>`;
+}
+function complianceBar(label, rate){
+  let color = "var(--green)";
+  if(rate==null) color = "var(--muted)";
+  else if(rate < 70) color = "var(--fail)";
+  else if(rate < 90) color = "var(--amber)";
+  return `<div class="barRow"><div class="lbl" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+    <div class="barTrack"><div class="barFill" style="width:${rate==null?2:rate}%;background:${color}"></div></div>
+    <div class="barVal">${rate==null?"n/a":rate+"%"}</div></div>`;
+}
+function trendChart(items){
+  const months = lastNMonths(8);
+  const counts = months.map(mk => items.filter(i=>monthKey(i.date)===mk).length);
+  const max = Math.max(1, ...counts);
+  return `<div class="trendChart">${months.map((mk,idx)=>`
+      <div class="trendBar">
+        <div class="tval">${counts[idx]||""}</div>
+        <div class="bar" style="height:${Math.max(4,(counts[idx]/max)*90)}px;"></div>
+        <div class="tlabel">${monthLabel(mk)}</div>
+      </div>`).join("")}</div>`;
+}
+function followUpFeed(items, limit=15){
+  const flagged = items.filter(hasFollowUp).sort((a,b)=> (b.date||"").localeCompare(a.date||"")).slice(0, limit);
+  if(!flagged.length) return `<div class="empty">No flagged items 🎉</div>`;
+  return flagged.map(i=>{
+    const flags = flagsForItem(i);
+    return `<div class="feedItem">
+      <div class="top"><span>${escapeHtml(i.employee)} · ${escapeHtml(i.office||"—")} · ${escapeHtml(i.manager||"—")}</span><span>${fmtDate(i.date)}</span></div>
+      <div class="flags">${flags.map(f=>`<span class="pill ${f.status==='fail'?'fail':'warn'}">${escapeHtml(f.c.label)}</span>`).join("")}</div>
+      ${i.correctiveActionsGiven ? `<div class="note"><b>Corrective action:</b> ${escapeHtml(i.correctiveActionsGiven)}</div>`:""}
+      ${i.additionalTrainingNeeded ? `<div class="note"><b>Training needed:</b> ${escapeHtml(i.additionalTrainingNeeded)}</div>`:""}
+      <div style="margin-top:6px;display:flex;align-items:center;gap:10px;">
+        <a href="${i.url}" target="_blank">Open in monday →</a>
+        <button class="synBtn" onclick="generateItemSynopsis('${i.id}', this)">✨ AI Synopsis</button>
+      </div>
+      <div class="synBox" id="syn-${i.id}"></div>
+    </div>`;
+  }).join("");
+}
+function recentTable(items, limit=20){
+  const rows = items.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,limit);
+  if(!rows.length) return `<div class="empty">No ride-alongs yet.</div>`;
+  return `<div class="scrollx"><table>
+    <tr><th>Date</th><th>Employee</th><th>Office</th><th>Service</th><th>Flags</th></tr>
+    ${rows.map(i=>{
+      const flags = flagsForItem(i);
+      return `<tr>
+        <td>${fmtDate(i.date)}</td>
+        <td><a href="${i.url}" target="_blank">${escapeHtml(i.employee)}</a></td>
+        <td>${escapeHtml(i.office||"—")}</td>
+        <td>${escapeHtml(i.serviceType||"—")}</td>
+        <td>${flags.length ? flags.map(f=>`<span class="pill ${f.status==='fail'?'fail':'warn'}">${escapeHtml(f.c.label)}</span>`).join(" ") : `<span class="pill pass">Clean</span>`}</td>
+      </tr>`;
+    }).join("")}
+  </table></div>`;
+}
+function kpiCard(num, label, accent){
+  return `<div class="kpi ${accent?'accent':''}"><div class="num">${num}</div><div class="label">${label}</div></div>`;
+}
+function thisMonthCount(items){
+  const mk = monthKey(new Date().toISOString().slice(0,10));
+  return items.filter(i=>monthKey(i.date)===mk).length;
+}
+
+// Generic profile section for whichever single value is selected via a filter (Tech, Branch,
+// or Manager) — shown on top of whichever role view (Leadership or a manager's own page) is
+// active. Pulls every ride-along matching the active filters and spells out compliance, ratings,
+// who else is involved (via groupDims), and every flag instead of just a count. A live AI-written
+// narrative is slotted in above the KPIs and filled in asynchronously by renderAiInsight().
+function renderBreakdownSection(id, icon, title, items, groupDims, dim){
+  if (!items.length) return "";
+  const score = overallComplianceScore(items);
+  const flaggedCount = items.filter(hasFollowUp).length;
+
+  const groupBlocks = groupDims.map(g=>{
+    const byVal = {};
+    items.forEach(i=>{ const v = i[g.key] || "Unassigned"; (byVal[v]=byVal[v]||[]).push(i); });
+    const names = Object.keys(byVal).sort((a,b)=>byVal[b].length-byVal[a].length);
+    const max = Math.max(1, ...names.map(n=>byVal[n].length));
+    return `<section><h2>Ride-Alongs by ${escapeHtml(g.label)}</h2>
+      <div class="card">${names.map(n=>barRow(n, byVal[n].length, max, "var(--red)")).join("")}</div>
+    </section>`;
+  }).join("");
+
+  // Operational coverage detail (insects/products/equipment covered, customer home vs. not
+  // home, service completion by area) only makes sense as a per-technician breakdown — the
+  // user asked for this specifically "when filtering by tech".
+  const techSections = dim === "employee" ? `
+    ${coverageBlock("Insects Covered", coverageBreakdown(items, "insectsCovered", INSECT_OPTIONS))}
+    ${coverageBlock("Products Covered", coverageBreakdown(items, "productsCovered", PRODUCT_OPTIONS))}
+    ${coverageBlock("Equipment Used", coverageBreakdown(items, "equipmentUsed", EQUIPMENT_OPTIONS))}
+    ${presenceBlock(items)}
+    ${serviceCompletionBlock(items)}
+  ` : "";
+
+  return `
+    <section class="techBreakdown">
+      <h2>${icon} ${escapeHtml(title)}</h2>
+      <div class="sub">Every ride-along matching the current filters — KPIs, breakdown, and a live AI summary</div>
+      <div class="aiInsight" id="insight-${id}">Generating AI insight…</div>
+      <div class="grid">
+        ${kpiCard(items.length, "Total Ride-Alongs", true)}
+        ${kpiCard(thisMonthCount(items), "This Month")}
+        ${kpiCard(score==null?"—":score+"%", "Compliance Score")}
+        ${kpiCard(flaggedCount, "Flagged Items")}
+      </div>
+      <section><h2>Monthly Cadence</h2><div class="card">${trendChart(items)}</div></section>
+      <section><h2>Compliance Breakdown by Category</h2>
+        <div class="card">${CHECKLIST.map(c=>complianceBar(c.label, complianceRate(items,c))).join("")}</div>
+      </section>
+      <section><h2>Average Ratings</h2>
+        <div class="card">${RATINGS.map(r=>`<div class="barRow"><div class="lbl">${r.label}</div><div>${stars(avgRating(items,r.key))}</div></div>`).join("")}</div>
+      </section>
+      ${groupBlocks}
+      ${techSections}
+      <section><h2>✨ AI Synopsis — All Ride-Alongs In View</h2>
+        <div class="sub">Strengths, areas to improve, corrective actions, training needs, and trend over time — generated from every ride-along currently shown</div>
+        <div class="synBox aiSynopsis" id="synopsis-${id}">Generating full synopsis…</div>
+      </section>
+      <section><h2>Every Flag, Elaborated</h2>
+        <div class="sub">Full detail on each flagged check, corrective action, and training note — not just a count</div>
+        ${followUpFeed(items, 50)}
+      </section>
+      <section><h2>Full Ride-Along History</h2>${recentTable(items, 100)}</section>
+    </section>
+  `;
+}
+
+// Asks Claude (via the Cowork artifact bridge) for a short narrative summary of a breakdown's
+// stats — fired after the section is already in the DOM, so it fills in once the response lands
+// without blocking the rest of the (synchronous) render. Falls back to hiding the box on error
+// or if the askClaude bridge isn't available.
+async function renderAiInsight(elId, items, contextLabel){
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!window.cowork || typeof window.cowork.askClaude !== "function") { el.style.display = "none"; return; }
+  try {
+    const stats = {
+      selection: contextLabel,
+      totalRideAlongs: items.length,
+      thisMonth: thisMonthCount(items),
+      complianceScore: overallComplianceScore(items),
+      flaggedCount: items.filter(hasFollowUp).length,
+      complianceByCategory: CHECKLIST.map(c => ({ label: c.label, passRate: complianceRate(items, c) })),
+      monthlyTrend: lastNMonths(6).map(mk => ({ month: mk, count: items.filter(i => monthKey(i.date) === mk).length })),
+      recentFlaggedItems: items.filter(hasFollowUp).slice(0, 10).map(i => ({
+        date: i.date, employee: i.employee, manager: i.manager, office: i.office,
+        flags: flagsForItem(i).map(f => f.c.label),
+        correctiveAction: i.correctiveActionsGiven || null,
+        trainingNeeded: i.additionalTrainingNeeded || null
+      }))
+    };
+    const prompt = `You're summarizing ride-along QA data for "${contextLabel}" for a frontline operations manager. In 2-3 tight sentences of plain prose (no headers, no bullet points), call out the most important trend or risk and one concrete, specific recommendation if the data warrants it. Use real numbers from the data. If everything looks healthy, say so briefly instead of inventing a problem.`;
+    const res = await window.cowork.askClaude(prompt, [stats]);
+    const text = extractAiText(res);
+    if (text.trim()) { el.textContent = text.trim(); }
+    else { el.style.display = "none"; }
+  } catch (err) {
+    el.style.display = "none";
+  }
+}
+
+// Aggregate counterpart to renderAiInsight — instead of a quick 2-3 sentence blurb, asks for the
+// same four-section writeup as the per-item synopsis (Strengths/Areas to Improve/Corrective
+// Actions/Training Needed), plus a fifth section calling out trend or concern over time across
+// every ride-along currently in view, fed by monthly compliance trend + a sample of flagged notes.
+async function renderAggregateSynopsis(elId, items, contextLabel){
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!window.cowork || typeof window.cowork.askClaude !== "function") { el.innerHTML = `<div class="empty">AI synopsis unavailable</div>`; return; }
+  try {
+    const monthlyTrend = lastNMonths(6).map(mk => {
+      const monthItems = items.filter(i => monthKey(i.date) === mk);
+      return { month: mk, count: monthItems.length, complianceScore: overallComplianceScore(monthItems) };
+    });
+    const payload = {
+      selection: contextLabel,
+      totalRideAlongs: items.length,
+      complianceByCategory: CHECKLIST.map(c => ({ label: c.label, passRate: complianceRate(items, c) })),
+      monthlyTrend,
+      sampleFlaggedNotes: items.filter(hasFollowUp).slice(0, 15).map(i => ({
+        date: i.date, employee: i.employee,
+        flags: flagsForItem(i).map(f => f.c.label),
+        strengths: i.strengthsObserved || null, areasToImprove: i.areasToImprove || null,
+        correctiveAction: i.correctiveActionsGiven || null, trainingNeeded: i.additionalTrainingNeeded || null,
+      })),
+    };
+    const prompt = `Write an aggregate synopsis across all ${items.length} ride-alongs for "${contextLabel}". Use exactly these four section headers, each on its own line followed by 2-3 sentences: "Strengths Observed", "Areas to Improve", "Corrective Actions Given", "Additional Training Needed". Then add a fifth section "Trend / Areas of Concern Over Time" describing whether compliance is improving, flat, or declining month over month using the monthly trend data, and naming any recurring concern. Use real numbers from the data. Plain text only, no markdown bullets or asterisks.`;
+    const res = await window.cowork.askClaude(prompt, [payload]);
+    const text = extractAiText(res).trim();
+    el.innerHTML = text ? formatSynopsis(text) : `<div class="empty">No synopsis returned</div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="empty">Couldn't generate synopsis</div>`;
+  }
+}
+
+// Generates the four-section AI synopsis for a single ride-along (button in followUpFeed).
+// Exposed on window since the button markup is built as a raw HTML string with an inline
+// onclick, not wired through addEventListener.
+window.generateItemSynopsis = async function(itemId, btnEl){
+  const box = document.getElementById(`syn-${itemId}`);
+  const item = STATE.itemsById && STATE.itemsById[itemId];
+  if (!box || !item) return;
+  if (!window.cowork || typeof window.cowork.askClaude !== "function") { box.innerHTML = `<div class="empty">AI synopsis unavailable</div>`; return; }
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = "Generating…"; }
+  box.innerHTML = `<div class="empty">Generating AI synopsis…</div>`;
+  try {
+    const flags = flagsForItem(item);
+    const payload = {
+      employee: item.employee, manager: item.manager, office: item.office, date: item.date, serviceType: item.serviceType,
+      flaggedChecks: flags.map(f => ({ label: f.c.label, status: f.status })),
+      ratings: RATINGS.map(r => ({ label: r.label, value: item[r.key] })),
+      insectsCovered: item.insectsCovered, productsCovered: item.productsCovered, equipmentUsed: item.equipmentUsed,
+      existingStrengthsNote: item.strengthsObserved || null,
+      existingAreasToImproveNote: item.areasToImprove || null,
+      existingCorrectiveActionsNote: item.correctiveActionsGiven || null,
+      existingTrainingNote: item.additionalTrainingNeeded || null,
+    };
+    const prompt = `Write a synopsis of this single ride-along QA visit for ${item.employee || "the technician"}. Use exactly these four section headers, each on its own line followed by 1-2 sentences: "Strengths Observed", "Areas to Improve", "Corrective Actions Given", "Additional Training Needed". Base it on the data given and incorporate any existing manager notes rather than ignoring them. If a section has nothing notable, say so briefly rather than inventing detail. Plain text only, no markdown bullets or asterisks.`;
+    const res = await window.cowork.askClaude(prompt, [payload]);
+    const text = extractAiText(res).trim();
+    box.innerHTML = text ? formatSynopsis(text) : `<div class="empty">No synopsis returned</div>`;
+  } catch (err) {
+    box.innerHTML = `<div class="empty">Couldn't generate synopsis</div>`;
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = "✨ AI Synopsis"; }
+  }
+};
+
+function renderLeadership(all){
+  const complete = all.filter(i=>i.isComplete);
+  const byManager = {};
+  complete.forEach(i=>{ const m=i.manager||"Unassigned"; (byManager[m]=byManager[m]||[]).push(i); });
+  const managerNames = Object.keys(byManager).sort((a,b)=>byManager[b].length-byManager[a].length);
+  const maxByManager = Math.max(1, ...managerNames.map(m=>byManager[m].length));
+
+  const byOffice = {};
+  complete.forEach(i=>{ const o=i.office||"Unassigned"; (byOffice[o]=byOffice[o]||[]).push(i); });
+  const officeNames = Object.keys(byOffice).sort((a,b)=>byOffice[b].length-byOffice[a].length);
+  const maxByOffice = Math.max(1, ...officeNames.map(o=>byOffice[o].length));
+
+  const overall = overallComplianceScore(complete);
+  const managerRows = managerNames.map(m=>{
+    const items = byManager[m];
+    const score = overallComplianceScore(items);
+    const flagged = items.filter(hasFollowUp).length;
+    const last = items.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+    return { m, count: items.length, thisMonth: thisMonthCount(items), score, flagged, last: last ? last.date : null };
+  });
+
+  return `
+    <div class="grid">
+      ${kpiCard(complete.length, "Total Ride-Alongs", true)}
+      ${kpiCard(thisMonthCount(complete), "This Month")}
+      ${kpiCard(managerNames.length, "Active Managers")}
+      ${kpiCard(overall==null?"—":overall+"%", "Avg Compliance")}
+    </div>
+    <section><h2>Ride-Alongs Performed by Manager</h2>
+      <div class="sub">Cadence &amp; accountability — who is actually getting in the field</div>
+      <div class="card">${managerNames.map(m=>barRow(m, byManager[m].length, maxByManager, "var(--red)")).join("")}</div>
+    </section>
+    <section><h2>Monthly Trend (All Managers)</h2><div class="card">${trendChart(complete)}</div></section>
+    <section><h2>Coverage by Office</h2>
+      <div class="card">${officeNames.map(o=>barRow(o, byOffice[o].length, maxByOffice, "var(--red)")).join("")}</div>
+    </section>
+    <section><h2>Team Compliance Scorecard</h2>
+      <div class="sub">% of applicable ride-alongs scored YES / Complete, across all managers</div>
+      <div class="card">${CHECKLIST.map(c=>complianceBar(c.label, complianceRate(complete,c))).join("")}</div>
+    </section>
+    <section><h2>Manager Comparison</h2>
+      <div class="card scrollx"><table id="mgrTable">
+        <tr><th data-k="m">Manager</th><th data-k="count">Total</th><th data-k="thisMonth">This Mo.</th>
+          <th data-k="score">Compliance</th><th data-k="flagged">Flagged</th><th data-k="last">Last Ride-Along</th></tr>
+        ${managerRows.map(r=>`<tr>
+          <td>${escapeHtml(r.m)}</td><td>${r.count}</td><td>${r.thisMonth}</td>
+          <td>${r.score==null?"—":r.score+"%"}</td>
+          <td>${r.flagged ? `<span class="pill warn">${r.flagged}</span>` : "0"}</td>
+          <td>${fmtDate(r.last)}</td></tr>`).join("")}
+      </table></div>
+    </section>
+    <section><h2>Needs Follow-Up</h2>
+      <div class="sub">Most recent ride-alongs with a failed check, missed spot, or corrective action / training note</div>
+      ${followUpFeed(complete)}
+    </section>
+    <section><h2>All Recent Ride-Alongs</h2>${recentTable(complete)}</section>
+  `;
+}
+
+function renderManager(all, managerName){
+  const mine = all.filter(i=>i.isComplete && i.manager===managerName);
+  const score = overallComplianceScore(mine);
+  const byEmployee = {};
+  mine.forEach(i=>{ (byEmployee[i.employee]=byEmployee[i.employee]||[]).push(i); });
+  const employeeRows = Object.keys(byEmployee).map(e=>{
+    const items = byEmployee[e];
+    const last = items.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+    return { e, count: items.length, last: last?last.date:null, office: last?last.office:"" };
+  }).sort((a,b)=>(a.last||"").localeCompare(b.last||""));
+
+  return `
+    <div class="aiInsight" id="insight-mgrself">Generating AI insight…</div>
+    <div class="grid">
+      ${kpiCard(mine.length, "Your Ride-Alongs", true)}
+      ${kpiCard(thisMonthCount(mine), "This Month")}
+      ${kpiCard(Object.keys(byEmployee).length, "Employees Covered")}
+      ${kpiCard(score==null?"—":score+"%", "Your Compliance")}
+    </div>
+    <section><h2>Your Monthly Cadence</h2><div class="card">${trendChart(mine)}</div></section>
+    <section><h2>Your Compliance Scorecard</h2>
+      <div class="card">${CHECKLIST.map(c=>complianceBar(c.label, complianceRate(mine,c))).join("")}</div>
+    </section>
+    <section><h2>Average Ratings You've Given</h2>
+      <div class="card">${RATINGS.map(r=>`<div class="barRow"><div class="lbl">${r.label}</div><div>${stars(avgRating(mine,r.key))}</div></div>`).join("")}</div>
+    </section>
+    <section><h2>Employee Coverage</h2>
+      <div class="sub">Sorted oldest ride-along first — who's due for a check-in. Spans every branch you currently or previously covered.</div>
+      <div class="card scrollx"><table>
+        <tr><th>Employee</th><th>Office</th><th>Ride-Alongs</th><th>Last Visit</th></tr>
+        ${employeeRows.map(r=>`<tr><td>${escapeHtml(r.e)}</td><td>${escapeHtml(r.office||"—")}</td><td>${r.count}</td><td>${fmtDate(r.last)}</td></tr>`).join("") || `<tr><td colspan="4" class="empty">No ride-alongs yet</td></tr>`}
+      </table></div>
+    </section>
+    <section><h2>✨ AI Synopsis — All Your Ride-Alongs</h2>
+      <div class="sub">Strengths, areas to improve, corrective actions, training needs, and trend over time across your full history</div>
+      <div class="synBox aiSynopsis" id="synopsis-mgrself">Generating full synopsis…</div>
+    </section>
+    <section><h2>Open Follow-Up Items</h2>
+      <div class="sub">Your own flagged checks, corrective actions and training notes</div>
+      ${followUpFeed(mine)}
+    </section>
+    <section><h2>Your Recent Ride-Alongs</h2>${recentTable(mine)}</section>
+  `;
+}
+
+function getFilteredItems(){
+  let items = STATE.items.filter(i=>i.isComplete);
+  if (FILTERS.manager) items = items.filter(i => i.manager === FILTERS.manager);
+  if (FILTERS.office) items = items.filter(i => i.office === FILTERS.office);
+  if (FILTERS.employee) items = items.filter(i => i.employee === FILTERS.employee);
+  if (FILTERS.service) items = items.filter(i => i.serviceType === FILTERS.service);
+  if (FILTERS.dateFrom) items = items.filter(i => i.date && i.date >= FILTERS.dateFrom);
+  if (FILTERS.dateTo) items = items.filter(i => i.date && i.date <= FILTERS.dateTo);
+  return items;
+}
+
+function updateActiveFiltersLabel(count, total){
+  const active = Object.entries(FILTERS).filter(([,v])=>v);
+  const lbl = $("#activeFiltersLabel");
+  if (!active.length){ lbl.textContent = ""; return; }
+  const parts = active.map(([k,v])=>{
+    const names = { manager: "Manager", office: "Branch", employee: "Tech", service: "Service", dateFrom: "From", dateTo: "To" };
+    return `${names[k]}: ${v}`;
+  });
+  // "total" is the board-wide count across every manager/tech, not this selection's own total —
+  // spelled out so it isn't misread as "this person submitted `total` and only `count` are shown".
+  lbl.textContent = `${count} ride-along${count===1?"":"s"} match (${parts.join(" · ")}) — out of ${total} total board-wide`;
+}
+
+function uniqueSorted(items, key){
+  return Array.from(new Set(items.map(i=>i[key]).filter(Boolean))).sort();
+}
+
+function populateFilterOptions(){
+  const complete = STATE.items.filter(i=>i.isComplete);
+  const fill = (selId, values, current) => {
+    const sel = $(selId);
+    const placeholder = sel.options[0];
+    sel.innerHTML = "";
+    sel.appendChild(placeholder);
+    values.forEach(v=>{
+      const opt = document.createElement("option");
+      opt.value = v; opt.textContent = v;
+      if (v === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  };
+  fill("#f_manager", uniqueSorted(complete, "manager"), FILTERS.manager);
+  fill("#f_office", uniqueSorted(complete, "office"), FILTERS.office);
+  fill("#f_employee", uniqueSorted(complete, "employee"), FILTERS.employee);
+  fill("#f_service", uniqueSorted(complete, "serviceType"), FILTERS.service);
+}
+
+function render(){
+  const role = $("#roleSelect").value;
+  const app = $("#app");
+  if(!STATE.items.length){
+    app.innerHTML = `<div class="empty">No ride-along data found yet.</div>`;
+    return;
+  }
+  // When viewing a specific manager's own page, the manager filter is redundant (and could
+  // zero out results if set to someone else) — hide it and let the role pin the manager instead.
+  const isManagerView = role !== "__leadership__" && role;
+  $("#fGroup_manager").classList.toggle("hidden", isManagerView);
+
+  const data = getFilteredItems();
+  const totalComplete = STATE.items.filter(i=>i.isComplete).length;
+
+  // One breakdown section per active filter dimension (Tech / Branch / Manager), each broken
+  // down further by the *other* two dimensions, plus a live AI narrative for that selection.
+  const GROUP_DIMS = {
+    employee: [{ key: "manager", label: "Manager" }, { key: "office", label: "Branch" }],
+    office:   [{ key: "manager", label: "Manager" }, { key: "employee", label: "Technician" }],
+    manager:  [{ key: "office", label: "Branch" }, { key: "employee", label: "Technician" }]
+  };
+  const breakdowns = [];
+  if (FILTERS.employee) breakdowns.push({ id: "tech", icon: "🔍", title: `Technician Breakdown — ${FILTERS.employee}`, dim: "employee" });
+  if (FILTERS.office)   breakdowns.push({ id: "branch", icon: "🏢", title: `Branch Breakdown — ${FILTERS.office}`, dim: "office" });
+  if (FILTERS.manager)  breakdowns.push({ id: "manager", icon: "👤", title: `Manager Breakdown — ${FILTERS.manager}`, dim: "manager" });
+
+  const breakdownHtml = breakdowns.map(b => renderBreakdownSection(b.id, b.icon, b.title, data, GROUP_DIMS[b.dim], b.dim)).join("");
+
+  app.innerHTML = breakdownHtml + ((role === "__leadership__" || !role)
+    ? renderLeadership(data)
+    : renderManager(data, role));
+  updateActiveFiltersLabel(data.length, totalComplete);
+
+  breakdowns.forEach(b => {
+    renderAiInsight(`insight-${b.id}`, data, b.title);
+    renderAggregateSynopsis(`synopsis-${b.id}`, data, b.title);
+  });
+
+  // The manager's own page (selected via the role dropdown, not the Manager filter) gets the
+  // same AI insight + synopsis treatment, scoped purely by manager name — so it stays correct
+  // even as a manager moves between branches or starts covering more than one.
+  if (isManagerView) {
+    // Mirrors the exact filter renderManager() uses internally for "mine" — if other active
+    // filters (e.g. office/service) still apply, this stays in sync rather than accidentally
+    // pulling in other managers who share the same branch.
+    const mine = data.filter(i => i.manager === role);
+    renderAiInsight("insight-mgrself", mine, `${role} (all branches)`);
+    renderAggregateSynopsis("synopsis-mgrself", mine, `${role} (all branches)`);
+  }
+
+  const tbl = $("#mgrTable");
+  if(tbl){
+    let sortDir = {};
+    $all("th", tbl).forEach((th, idx)=>{
+      th.addEventListener("click", ()=>{
+        const k = th.dataset.k;
+        sortDir[k] = !sortDir[k];
+        const rows = $all("tr", tbl).slice(1);
+        rows.sort((a,b)=>{
+          const ai = a.children[idx].textContent, bi = b.children[idx].textContent;
+          const an = parseFloat(ai), bn = parseFloat(bi);
+          let cmp = (!isNaN(an) && !isNaN(bn)) ? an-bn : ai.localeCompare(bi);
+          return sortDir[k] ? cmp : -cmp;
+        });
+        rows.forEach(r=>tbl.appendChild(r));
+      });
+    });
+  }
+}
+
+function populateRoleSelect(){
+  const sel = $("#roleSelect");
+  sel.innerHTML = `<option value="__leadership__">📊 Leadership Overview</option>` +
+    STATE.managers.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+}
+
+// monday's "Name" field on this board's form is hidden, so most items are auto-titled
+// "Incoming form answer" / "New item" rather than the technician's real name. The real
+// technician identity lives in the Employee Directory board-relation column instead.
+function flattenItem(rawItem){
+  const byId = {};
+  for (const cv of rawItem.column_values) {
+    if (cv.type === "mirror") byId[cv.id] = cv.display_value;
+    else if (cv.type === "board_relation") byId[cv.id] = (cv.linked_items || []).map(li => li.name).join(", ") || null;
+    else byId[cv.id] = cv.text;
+  }
+  const out = { id: rawItem.id, itemName: rawItem.name, url: rawItem.url };
+  for (const [key, colId] of Object.entries(COLUMN_MAP)) out[key] = byId[colId] ?? null;
+  for (const key of ["professionalGreetingRating","properExplanationRating","vehicleCleanlinessRating"]) {
+    const v = out[key]; out[key] = (v && v !== "") ? Number(v) : null;
+  }
+  out.date = normalizeDate(out.date);
+  out.isComplete = Boolean(out.date && out.manager && out.employee);
+  return out;
+}
+
+async function fetchAllItems(){
+  const query = `query ($boardId: [ID!], $cursor: String) {
+    boards(ids: $boardId) {
+      items_page(limit: 100, cursor: $cursor) {
+        cursor
+        items {
+          id name url
+          column_values(ids: ${JSON.stringify(ALL_COLUMN_IDS)}) {
+            id type text
+            ... on MirrorValue { display_value }
+            ... on BoardRelationValue { linked_items { id name } }
+          }
+        }
+      }
+    }
+  }`;
+  let cursor = null, items = [], guard = 0;
+  do {
+    const r = await window.cowork.callMcpTool(
+      "mcp__c080e64c-2d3e-4786-b319-21c808ea1efe__all_monday_api",
+      { query, variables: JSON.stringify({ boardId: [BOARD_ID], cursor }) }
+    );
+    if (r.isError) throw new Error(r.content?.[0]?.text || "monday API error");
+    const data = r.structuredContent ?? JSON.parse(r.content[0].text);
+    const page = data.boards[0].items_page;
+    items = items.concat(page.items);
+    cursor = page.cursor;
+    guard++;
+  } while (cursor && guard < 30);
+  return items;
+}
+
+async function loadData(){
+  try {
+    const raw = await fetchAllItems();
+    const items = raw.map(flattenItem);
+    const managerSet = new Set();
+    const itemsById = {};
+    items.forEach(i => { if (i.manager) managerSet.add(i.manager); itemsById[i.id] = i; });
+    STATE = { items, itemsById, managers: Array.from(managerSet).sort(), generatedAt: new Date().toISOString() };
+    populateRoleSelect();
+    populateFilterOptions();
+    render();
+    $("#lastUpdated").textContent = "Updated " + new Date(STATE.generatedAt).toLocaleTimeString();
+    $("#itemCount").textContent = items.length + " logged";
+  } catch (err) {
+    $("#app").innerHTML = `<div class="empty">Couldn't load live data.<br>${escapeHtml(String(err.message||err))}</div>`;
+  }
+}
+
+$("#roleSelect").addEventListener("change", ()=>{
+  // Switching to a per-manager view: drop any leadership-only manager filter so it can't zero out results.
+  const role = $("#roleSelect").value;
+  if (role !== "__leadership__" && role) {
+    FILTERS.manager = "";
+    $("#f_manager").value = "";
+  }
+  render();
+});
+$("#refreshBtn").addEventListener("click", loadData);
+$("#f_manager").addEventListener("change", e=>{ FILTERS.manager = e.target.value; render(); });
+$("#f_office").addEventListener("change", e=>{ FILTERS.office = e.target.value; render(); });
+$("#f_employee").addEventListener("change", e=>{ FILTERS.employee = e.target.value; render(); });
+$("#f_service").addEventListener("change", e=>{ FILTERS.service = e.target.value; render(); });
+$("#f_dateFrom").addEventListener("change", e=>{ FILTERS.dateFrom = e.target.value; render(); });
+$("#f_dateTo").addEventListener("change", e=>{ FILTERS.dateTo = e.target.value; render(); });
+$("#clearFiltersBtn").addEventListener("click", ()=>{
+  FILTERS = { manager: "", office: "", employee: "", service: "", dateFrom: "", dateTo: "" };
+  ["f_manager","f_office","f_employee","f_service","f_dateFrom","f_dateTo"].forEach(id=>{ $("#"+id).value = ""; });
+  render();
+});
+
+loadData();
+</script>
+</body>
+</html>
