@@ -33,6 +33,8 @@
   .kpi.accent{border-left-color:var(--red);background:var(--red-dim);}
   .aiInsight{background:var(--red-dim);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:8px;padding:10px 12px;margin:0 0 16px;font-size:13px;line-height:1.5;color:var(--text);font-style:italic;}
   .aiInsight::before{content:"✨ AI summary: ";font-style:normal;font-weight:700;color:var(--red);}
+  .focusAreas{background:#fdf1de;border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;padding:10px 12px;margin:0 0 16px;font-size:13px;line-height:1.5;color:var(--text);font-style:italic;}
+  .focusAreas::before{content:"🎯 Areas to address: ";font-style:normal;font-weight:700;color:var(--amber);}
   section{margin-bottom:28px;}
   section h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--text);margin:0 0 4px;display:flex;align-items:center;gap:8px;font-weight:800;}
   section h2::before{content:"";width:4px;height:14px;background:var(--red);border-radius:2px;}
@@ -270,6 +272,32 @@ function overallComplianceScore(items){
   const rates = CHECKLIST.map(c => complianceRate(items, c)).filter(r => r != null);
   if(!rates.length) return null;
   return Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
+}
+
+// Per-category breakdown of pass rate AND how often the field was left blank. Blanks are already
+// excluded from passRate everywhere above (a blank means "didn't apply that visit," not a fail —
+// it never drags the overall score down), but a category that's blank on most visits is itself
+// worth surfacing: it's a data-completion gap, separate from a low pass rate on a category that
+// IS being scored. Feeds the AI prompts below so they can name specific low-scoring and
+// frequently-blank categories instead of speaking in generalities.
+function categoryStats(items){
+  const total = items.length;
+  return CHECKLIST.map(c => {
+    let blank = 0;
+    items.forEach(i => { const v = i[c.key]; if (v == null || v === "") blank++; });
+    return {
+      label: c.label,
+      passRate: complianceRate(items, c),
+      blankCount: blank,
+      blankPct: total ? Math.round((blank/total)*100) : 0,
+    };
+  });
+}
+function lowScoreCategories(items, threshold=80){
+  return categoryStats(items).filter(c => c.passRate != null && c.passRate < threshold).sort((a,b)=>a.passRate-b.passRate);
+}
+function highBlankCategories(items, threshold=30){
+  return categoryStats(items).filter(c => c.blankPct >= threshold).sort((a,b)=>b.blankPct-a.blankPct);
 }
 function avgRating(items, key){
   const vals = items.map(i=>i[key]).filter(v=>v!=null && !isNaN(v));
@@ -517,6 +545,7 @@ function renderBreakdownSection(id, icon, title, items, groupDims, dim){
   // home, service completion by area) only makes sense as a per-technician breakdown — the
   // user asked for this specifically "when filtering by tech".
   const techSections = dim === "employee" ? `
+    <div class="focusAreas" id="focus-${id}">Generating focus areas…</div>
     ${coverageBlock("Insects Covered", coverageBreakdown(items, "insectsCovered", INSECT_OPTIONS))}
     ${coverageBlock("Products Covered", coverageBreakdown(items, "productsCovered", PRODUCT_OPTIONS))}
     ${coverageBlock("Equipment Used", coverageBreakdown(items, "equipmentUsed", EQUIPMENT_OPTIONS))}
@@ -572,7 +601,7 @@ async function renderAiInsight(elId, items, contextLabel){
       thisMonth: thisMonthCount(items),
       complianceScore: overallComplianceScore(items),
       flaggedCount: items.filter(hasFollowUp).length,
-      complianceByCategory: CHECKLIST.map(c => ({ label: c.label, passRate: complianceRate(items, c) })),
+      complianceByCategory: categoryStats(items),
       monthlyTrend: lastNMonths(6).map(mk => ({ month: mk, count: items.filter(i => monthKey(i.date) === mk).length })),
       recentFlaggedItems: items.filter(hasFollowUp).slice(0, 10).map(i => ({
         date: i.date, employee: i.employee, manager: i.manager, office: i.office,
@@ -581,7 +610,44 @@ async function renderAiInsight(elId, items, contextLabel){
         trainingNeeded: i.additionalTrainingNeeded || null
       }))
     };
-    const prompt = `You're summarizing ride-along QA data for "${contextLabel}" for a frontline operations manager. In 2-3 tight sentences of plain prose (no headers, no bullet points), call out the most important trend or risk and one concrete, specific recommendation if the data warrants it. Use real numbers from the data. If everything looks healthy, say so briefly instead of inventing a problem.`;
+    const prompt = `You're summarizing ride-along QA data for "${contextLabel}" for a frontline operations manager. In 2-3 tight sentences of plain prose (no headers, no bullet points), call out the most important trend or risk and one concrete, specific recommendation if the data warrants it. Use real numbers from the data. Pay particular attention to complianceByCategory: (1) any category with a passRate notably lower than the others — name it specifically, and (2) any category with a high blankPct, meaning it's frequently left blank instead of scored — that's a data-completion gap distinct from a low score, and worth raising on its own. A blank never lowers passRate or the overall compliance score, so don't conflate the two. If nothing stands out on either front, say so briefly instead of inventing a problem.`;
+    const res = await window.cowork.askClaude(prompt, [stats]);
+    const text = extractAiText(res);
+    if (text.trim()) { el.textContent = text.trim(); }
+    else { el.style.display = "none"; }
+  } catch (err) {
+    el.style.display = "none";
+  }
+}
+
+// Tech-only AI block, separate from renderAiInsight's general trend/risk blurb above. Combines
+// three different kinds of gap into one short, actionable note: insects/products/equipment that
+// have never been recorded as covered on any of this tech's ride-alongs, checklist categories
+// scoring lowest, and checklist categories most often left blank instead of scored. All three are
+// computed deterministically here (not left for the AI to infer) so the AI is just writing up
+// real numbers, not guessing at them.
+async function renderFocusAreas(elId, items, contextLabel){
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!window.cowork || typeof window.cowork.askClaude !== "function") { el.style.display = "none"; return; }
+  try {
+    const neverCoveredInsects = coverageBreakdown(items, "insectsCovered", INSECT_OPTIONS).neverCovered;
+    const neverCoveredProducts = coverageBreakdown(items, "productsCovered", PRODUCT_OPTIONS).neverCovered;
+    const neverCoveredEquipment = coverageBreakdown(items, "equipmentUsed", EQUIPMENT_OPTIONS).neverCovered;
+    const lowScore = lowScoreCategories(items);
+    const highBlank = highBlankCategories(items);
+    if (!lowScore.length && !highBlank.length && !neverCoveredInsects.length && !neverCoveredProducts.length && !neverCoveredEquipment.length) {
+      el.textContent = "No notable gaps — every tracked checklist category, insect, product, and equipment type has healthy coverage.";
+      return;
+    }
+    const stats = {
+      selection: contextLabel,
+      totalRideAlongs: items.length,
+      lowScoreCategories: lowScore,
+      highBlankCategories: highBlank,
+      neverCoveredInsects, neverCoveredProducts, neverCoveredEquipment,
+    };
+    const prompt = `You're advising a frontline operations manager on what to focus on next for "${contextLabel}", based on ride-along QA data. In 2-3 tight sentences of plain prose (no headers, no bullet points), name the specific checklist categories scoring lowest (from lowScoreCategories, if any), any categories frequently left blank instead of scored (from highBlankCategories, if any), and any insects, products, or equipment types that have never once been recorded as covered (from neverCoveredInsects/neverCoveredProducts/neverCoveredEquipment, if any). Use the real labels/names from the data, not generic phrasing. Skip any of the three that's empty rather than mentioning it has nothing to report.`;
     const res = await window.cowork.askClaude(prompt, [stats]);
     const text = extractAiText(res);
     if (text.trim()) { el.textContent = text.trim(); }
@@ -607,7 +673,7 @@ async function renderAggregateSynopsis(elId, items, contextLabel){
     const payload = {
       selection: contextLabel,
       totalRideAlongs: items.length,
-      complianceByCategory: CHECKLIST.map(c => ({ label: c.label, passRate: complianceRate(items, c) })),
+      complianceByCategory: categoryStats(items),
       monthlyTrend,
       sampleFlaggedNotes: items.filter(hasFollowUp).slice(0, 15).map(i => ({
         date: i.date, employee: i.employee,
@@ -616,7 +682,7 @@ async function renderAggregateSynopsis(elId, items, contextLabel){
         correctiveAction: i.correctiveActionsGiven || null, trainingNeeded: i.additionalTrainingNeeded || null,
       })),
     };
-    const prompt = `Write an aggregate synopsis across all ${items.length} ride-alongs for "${contextLabel}". Use exactly these four section headers, each on its own line followed by 2-3 sentences: "Strengths Observed", "Areas to Improve", "Corrective Actions Given", "Additional Training Needed". Then add a fifth section "Trend / Areas of Concern Over Time" describing whether compliance is improving, flat, or declining month over month using the monthly trend data, and naming any recurring concern. Use real numbers from the data. Plain text only, no markdown bullets or asterisks.`;
+    const prompt = `Write an aggregate synopsis across all ${items.length} ride-alongs for "${contextLabel}". Use exactly these four section headers, each on its own line followed by 2-3 sentences: "Strengths Observed", "Areas to Improve", "Corrective Actions Given", "Additional Training Needed". In "Areas to Improve", specifically name any complianceByCategory entry with a low passRate, AND separately name any entry with a high blankPct (frequently left blank instead of scored) as a data-completion gap — these are two different issues, don't merge them, and a blank never counts against the score itself. Then add a fifth section "Trend / Areas of Concern Over Time" describing whether compliance is improving, flat, or declining month over month using the monthly trend data, and naming any recurring concern. Use real numbers from the data. Plain text only, no markdown bullets or asterisks.`;
     const res = await window.cowork.askClaude(prompt, [payload]);
     const text = extractAiText(res).trim();
     el.innerHTML = text ? formatSynopsis(text) : `<div class="empty">No synopsis returned</div>`;
@@ -847,6 +913,9 @@ function render(){
   breakdowns.forEach(b => {
     renderAiInsight(`insight-${b.id}`, data, b.title);
     renderAggregateSynopsis(`synopsis-${b.id}`, data, b.title);
+    // Areas-to-address only applies to the tech breakdown — it's built from per-tech coverage
+    // gaps (never-covered insects/products/equipment), which only renders for dim === "employee".
+    if (b.dim === "employee") renderFocusAreas(`focus-${b.id}`, data, b.title);
   });
 
   // The manager's own page (selected via the role dropdown, not the Manager filter) gets the
