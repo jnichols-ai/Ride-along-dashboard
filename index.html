@@ -185,6 +185,24 @@ window.cowork.askClaude = async function(prompt, data){
 };
 
 const BOARD_ID = "18391482563";
+// Call-outs and time-off requests live on their own HR boards (read-only — we never write to
+// them). The dashboard fetches both directly each load and merges the totals in based on the
+// active filters; nothing is copied/mirrored into the Ride Along board itself.
+const CALLOUTS_BOARD_ID = "18379275292";
+const TIMEOFF_BOARD_ID = "18006361385";
+const CALLOUT_COLUMN_MAP = {
+  employee: "board_relation_mkw07eht", manager: "lookup_mkw0seqz", office: "lookup_mkw0jrc2",
+  requestType: "color_mkx0z6pj", fullDayRange: "timerange_mkx65krk",
+  partialStart: "date_mkx6nxyk", partialEnd: "date_mkx6wamm",
+  reason: "color_mkxfev8f", notes: "text_mkxxjqfj", status: "status",
+};
+const TIMEOFF_COLUMN_MAP = {
+  employee: "board_relation_mkw07eht", manager: "lookup_mkw0seqz", office: "lookup_mkw0jrc2",
+  requestType: "color_mkx0z6pj", fullDayRange: "timerange_mkxx5r7k",
+  partialStart: "date_mkxxrrqt", partialEnd: "date_mkxxery4", status: "status",
+};
+const CALLOUT_COLUMN_IDS = Object.values(CALLOUT_COLUMN_MAP);
+const TIMEOFF_COLUMN_IDS = Object.values(TIMEOFF_COLUMN_MAP);
 
 const COLUMN_MAP = {
   employee: "board_relation_mkyfavcb",
@@ -234,7 +252,7 @@ const RATINGS = [
   { key: "vehicleCleanlinessRating", label: "Vehicle Cleanliness" },
 ];
 
-let STATE = { items: [], itemsById: {}, managers: [], generatedAt: null };
+let STATE = { items: [], itemsById: {}, managers: [], callOuts: [], timeOff: [], generatedAt: null };
 let FILTERS = { manager: "", office: "", employee: "", service: "", dateFrom: "", dateTo: "" };
 
 function $(s, r=document){ return r.querySelector(s); }
@@ -513,6 +531,20 @@ function recentTable(items, limit=20){
     }).join("")}
   </table></div>`;
 }
+// Small detail table shared by the Call Outs and Time Off Requests blocks on the tech
+// breakdown — same date-sorted-desc shape as recentTable but with a Reason/Type column.
+function recordTable(items, emptyMsg, reasonKey){
+  if (!items.length) return `<div class="empty">${emptyMsg}</div>`;
+  const rows = items.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  return `<div class="scrollx"><table>
+    <tr><th>Date</th><th>Employee</th><th>${reasonKey ? "Reason" : "Type"}</th></tr>
+    ${rows.map(i=>`<tr>
+      <td>${fmtDate(i.date)}</td>
+      <td>${escapeHtml(i.employee||"—")}</td>
+      <td>${escapeHtml((reasonKey ? i[reasonKey] : i.requestType)||"—")}</td>
+    </tr>`).join("")}
+  </table></div>`;
+}
 function kpiCard(num, label, accent){
   return `<div class="kpi ${accent?'accent':''}"><div class="num">${num}</div><div class="label">${label}</div></div>`;
 }
@@ -526,8 +558,10 @@ function thisMonthCount(items){
 // active. Pulls every ride-along matching the active filters and spells out compliance, ratings,
 // who else is involved (via groupDims), and every flag instead of just a count. A live AI-written
 // narrative is slotted in above the KPIs and filled in asynchronously by renderAiInsight().
-function renderBreakdownSection(id, icon, title, items, groupDims, dim){
+function renderBreakdownSection(id, icon, title, items, groupDims, dim, callOuts, timeOff){
   if (!items.length) return "";
+  callOuts = callOuts || [];
+  timeOff = timeOff || [];
   const score = overallComplianceScore(items);
   const flaggedCount = items.filter(hasFollowUp).length;
 
@@ -551,7 +585,19 @@ function renderBreakdownSection(id, icon, title, items, groupDims, dim){
     ${coverageBlock("Equipment Used", coverageBreakdown(items, "equipmentUsed", EQUIPMENT_OPTIONS))}
     ${presenceBlock(items)}
     ${serviceCompletionBlock(items)}
+    <section><h2>📋 Call Out Detail</h2>
+      <div class="sub">Within the current date range filter</div>
+      <div class="card">${recordTable(callOuts, "No call-outs in this range.", "reason")}</div>
+    </section>
+    <section><h2>🌴 Time Off Requests</h2>
+      <div class="sub">Time off is only shown on the technician breakdown, not branch/manager</div>
+      <div class="card">${recordTable(timeOff, "No time off requests in this range.")}</div>
+    </section>
   ` : "";
+
+  // Call Outs total shows on every breakdown dim (tech AND branch — and manager, for
+  // consistency); Time Off totals only appear in the tech-only detail table above.
+  const callOutsKpi = kpiCard(callOuts.length, "Call Outs");
 
   return `
     <section class="techBreakdown">
@@ -563,6 +609,7 @@ function renderBreakdownSection(id, icon, title, items, groupDims, dim){
         ${kpiCard(thisMonthCount(items), "This Month")}
         ${kpiCard(score==null?"—":score+"%", "Compliance Score")}
         ${kpiCard(flaggedCount, "Flagged Items")}
+        ${callOutsKpi}
       </div>
       <section><h2>Monthly Cadence</h2><div class="card">${trendChart(items)}</div></section>
       <section><h2>Compliance Breakdown by Category</h2>
@@ -903,7 +950,12 @@ function render(){
   if (FILTERS.office)   breakdowns.push({ id: "branch", icon: "🏢", title: `Branch Breakdown — ${FILTERS.office}`, dim: "office" });
   if (FILTERS.manager)  breakdowns.push({ id: "manager", icon: "👤", title: `Manager Breakdown — ${FILTERS.manager}`, dim: "manager" });
 
-  const breakdownHtml = breakdowns.map(b => renderBreakdownSection(b.id, b.icon, b.title, data, GROUP_DIMS[b.dim], b.dim)).join("");
+  // Call-outs/time-off respect every currently-active filter (manager/office/employee/date
+  // range) the same way the ride-along `data` set does — computed once since it's identical
+  // across whichever breakdown(s) are showing.
+  const filteredCallOuts = filterRecords(STATE.callOuts);
+  const filteredTimeOff = filterRecords(STATE.timeOff);
+  const breakdownHtml = breakdowns.map(b => renderBreakdownSection(b.id, b.icon, b.title, data, GROUP_DIMS[b.dim], b.dim, filteredCallOuts, filteredTimeOff)).join("");
 
   app.innerHTML = breakdownHtml + ((role === "__leadership__" || !role)
     ? renderLeadership(data)
@@ -976,6 +1028,25 @@ function flattenItem(rawItem){
   return out;
 }
 
+// Shared shape for call-out / time-off records (different board, same idea): an employee
+// (via the same Employee Directory board-relation, so manager/office line up automatically),
+// a request type, and either a full-day timeline or a partial-day start/end. The "anchor" date
+// used for date-range filtering is the start of whichever of those is populated.
+function flattenRecord(rawItem, colMap){
+  const byId = {};
+  for (const cv of rawItem.column_values) {
+    if (cv.type === "mirror") byId[cv.id] = cv.display_value;
+    else if (cv.type === "board_relation") byId[cv.id] = (cv.linked_items || []).map(li => li.name).join(", ") || null;
+    else if (cv.type === "timeline") byId[cv.id] = cv.from ? { from: cv.from, to: cv.to } : null;
+    else byId[cv.id] = cv.text;
+  }
+  const out = { id: rawItem.id, itemName: rawItem.name };
+  for (const [key, colId] of Object.entries(colMap)) out[key] = byId[colId] ?? null;
+  out.date = normalizeDate(out.fullDayRange && out.fullDayRange.from ? out.fullDayRange.from : out.partialStart);
+  out.endDate = normalizeDate(out.fullDayRange && out.fullDayRange.to ? out.fullDayRange.to : out.partialEnd);
+  return out;
+}
+
 async function fetchAllItems(){
   const query = `query ($boardId: [ID!], $cursor: String) {
     boards(ids: $boardId) {
@@ -1008,6 +1079,55 @@ async function fetchAllItems(){
   return items;
 }
 
+// Generic read-only fetch for the Call Outs / Time Off boards — same paging shape as
+// fetchAllItems but parameterized on board + columns, with a TimelineValue fragment added
+// for the full-day date-range columns those boards use.
+async function fetchRecords(boardId, columnIds){
+  const query = `query ($boardId: [ID!], $cursor: String) {
+    boards(ids: $boardId) {
+      items_page(limit: 100, cursor: $cursor) {
+        cursor
+        items {
+          id name
+          column_values(ids: ${JSON.stringify(columnIds)}) {
+            id type text
+            ... on MirrorValue { display_value }
+            ... on BoardRelationValue { linked_items { id name } }
+            ... on TimelineValue { from to }
+          }
+        }
+      }
+    }
+  }`;
+  let cursor = null, items = [], guard = 0;
+  do {
+    const r = await window.cowork.callMcpTool(
+      "mcp__c080e64c-2d3e-4786-b319-21c808ea1efe__all_monday_api",
+      { query, variables: JSON.stringify({ boardId: [boardId], cursor }) }
+    );
+    if (r.isError) throw new Error(r.content?.[0]?.text || "monday API error");
+    const data = r.structuredContent ?? JSON.parse(r.content[0].text);
+    const page = data.boards[0].items_page;
+    items = items.concat(page.items);
+    cursor = page.cursor;
+    guard++;
+  } while (cursor && guard < 30);
+  return items;
+}
+
+// Applies the same active manager/office/employee/date-range FILTERS used for ride-alongs to
+// a call-out or time-off list. Call-outs/time-off don't have isComplete/serviceType, so this
+// is intentionally a smaller filter than getFilteredItems().
+function filterRecords(list){
+  let items = list;
+  if (FILTERS.manager) items = items.filter(i => i.manager === FILTERS.manager);
+  if (FILTERS.office) items = items.filter(i => i.office === FILTERS.office);
+  if (FILTERS.employee) items = items.filter(i => i.employee === FILTERS.employee);
+  if (FILTERS.dateFrom) items = items.filter(i => i.date && i.date >= FILTERS.dateFrom);
+  if (FILTERS.dateTo) items = items.filter(i => i.date && i.date <= FILTERS.dateTo);
+  return items;
+}
+
 async function loadData(){
   try {
     const raw = await fetchAllItems();
@@ -1015,7 +1135,18 @@ async function loadData(){
     const managerSet = new Set();
     const itemsById = {};
     items.forEach(i => { if (i.manager) managerSet.add(i.manager); itemsById[i.id] = i; });
-    STATE = { items, itemsById, managers: Array.from(managerSet).sort(), generatedAt: new Date().toISOString() };
+    // Call-outs / time-off are best-effort: if either board fetch fails (permissions, etc.)
+    // the main ride-along dashboard should still load rather than erroring out entirely.
+    let callOuts = [], timeOff = [];
+    try {
+      const rawCallOuts = await fetchRecords(CALLOUTS_BOARD_ID, CALLOUT_COLUMN_IDS);
+      callOuts = rawCallOuts.map(r => flattenRecord(r, CALLOUT_COLUMN_MAP));
+    } catch (err) { console.error("Call Outs board fetch failed:", err); }
+    try {
+      const rawTimeOff = await fetchRecords(TIMEOFF_BOARD_ID, TIMEOFF_COLUMN_IDS);
+      timeOff = rawTimeOff.map(r => flattenRecord(r, TIMEOFF_COLUMN_MAP));
+    } catch (err) { console.error("Time Off board fetch failed:", err); }
+    STATE = { items, itemsById, managers: Array.from(managerSet).sort(), callOuts, timeOff, generatedAt: new Date().toISOString() };
     populateRoleSelect();
     populateFilterOptions();
     render();
