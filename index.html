@@ -93,6 +93,7 @@
   .synBox p{margin:0 0 6px;}
   .aiSynopsis{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;}
 </style>
+<script src="src/dashboard.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -190,79 +191,17 @@ const BOARD_ID = "18391482563";
 // active filters; nothing is copied/mirrored into the Ride Along board itself.
 const CALLOUTS_BOARD_ID = "18379275292";
 const TIMEOFF_BOARD_ID = "18006361385";
-const CALLOUT_COLUMN_MAP = {
-  employee: "board_relation_mkw07eht", manager: "lookup_mkw0seqz", office: "lookup_mkw0jrc2",
-  requestType: "color_mkx0z6pj", fullDayRange: "timerange_mkx65krk",
-  partialStart: "date_mkx6nxyk", partialEnd: "date_mkx6wamm",
-  reason: "color_mkxfev8f", notes: "text_mkxxjqfj", status: "status",
-};
-const TIMEOFF_COLUMN_MAP = {
-  employee: "board_relation_mkw07eht", manager: "lookup_mkw0seqz", office: "lookup_mkw0jrc2",
-  requestType: "color_mkx0z6pj", fullDayRange: "timerange_mkxx5r7k",
-  partialStart: "date_mkxxrrqt", partialEnd: "date_mkxxery4", status: "status",
-};
+// Column IDs derived from the maps exported by src/dashboard.js (loaded via <script> above).
 const CALLOUT_COLUMN_IDS = Object.values(CALLOUT_COLUMN_MAP);
 const TIMEOFF_COLUMN_IDS = Object.values(TIMEOFF_COLUMN_MAP);
-
-const COLUMN_MAP = {
-  employee: "board_relation_mkyfavcb",
-  manager: "lookup_mkyf5c2t", office: "lookup_mkyfjte3",
-  date: "date_mkyfk9e2", serviceType: "dropdown_mkyf4abk",
-  arrivedOnTime: "color_mkyftz1a", professionalGreeting: "color_mkyfpwv8",
-  professionalGreetingRating: "rating_mkyfvenm", properExplanation: "color_mkyfhex6",
-  properExplanationRating: "rating_mkyfbgn2", addressedConcerns: "color_mkyfjys8",
-  extDeWebbed: "color_mkyf9dc1", extGranular: "color_mkyfdrqk", extPerimeterSpray: "color_mkyfqthm",
-  extDust: "color_mm0nh27h", intLivingAreas: "color_mkyfvj0t", intBasement: "color_mkyfs4k5",
-  garage: "color_mkyfhyds", uniform: "color_mkyf4rjk", ppe: "color_mkyf8z73",
-  vehicleCleanlinessRating: "rating_mkyfw2es", strengthsObserved: "long_text_mkyffrkt",
-  areasToImprove: "long_text_mkyfjhdk", correctiveActionsGiven: "long_text_mkyfqbp0",
-  additionalTrainingNeeded: "long_text_mkyfwc13", equipmentWorking: "color_mkyg7e4w",
-  chemicalsOrganized: "color_mkygkhj2",
-  insectsCovered: "dropdown_mkyfj2sj", productsCovered: "dropdown_mkyf654s", equipmentUsed: "dropdown_mkyfw0qs",
-};
-
-// Full label universe for each multi-select dropdown, straight from the board's column
-// settings (minus "NONE", which is tracked separately as "nothing applied" rather than an
-// actual option). Used to compute what was covered vs. never covered for a selection.
-const INSECT_OPTIONS = ["Ant","Spiders","Stinging Insects","Cockroaches","Silverfish","Mosquitoes","Rats","Mice","Fleas","Ticks","Termites","Occasional Invaders","Gnats","Beetles","Flies","yellow jackets"];
-const PRODUCT_OPTIONS = ["Demand CS","Tandem","Advion Ant","Advion Roach","Delta Dust","Precore2625","Sentricon in ground","Sentricon AG","Glue Boards","Contrac Blox","Optiguard Roach","Optiguard Ant","Other","tempo dust","Crosscheck","Advance 375"];
-const EQUIPMENT_OPTIONS = ["Backpack Sprayer","Mosquito Mister","B&G","Storm Sprayer","Spreader","Electric Duster","De-Webbing Pole","RTU / Evo Express","Excluder","Gas Auger","bulb duster"];
 const ALL_COLUMN_IDS = Object.values(COLUMN_MAP);
-
-const CHECKLIST = [
-  { key: "arrivedOnTime", label: "Arrived On-Time", pass: ["YES"], fail: ["NO"] },
-  { key: "professionalGreeting", label: "Professional Greeting", pass: ["YES"], fail: ["NO"] },
-  { key: "properExplanation", label: "Explained Service", pass: ["YES"], fail: ["NO"] },
-  { key: "addressedConcerns", label: "Addressed Concerns", pass: ["YES"], fail: ["NO"] },
-  { key: "extDeWebbed", label: "Exterior De-Webbed", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
-  { key: "extGranular", label: "Exterior Granular", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
-  { key: "extPerimeterSpray", label: "Exterior Perimeter Spray", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
-  { key: "extDust", label: "Exterior Dust", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
-  { key: "intLivingAreas", label: "Interior Living Areas", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
-  { key: "intBasement", label: "Interior Basement", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
-  { key: "garage", label: "Garage", pass: ["Complete"], fail: ["Not Performed to FL Standards"], warn: ["Missed a few spots"] },
-  { key: "uniform", label: "Proper Uniform", pass: ["Yes"], fail: ["Not In FL Uniform"], warn: ["Missing parts"] },
-  { key: "ppe", label: "PPE Worn Correctly", pass: ["Yes"], fail: ["No"] },
-  { key: "equipmentWorking", label: "Equipment In Working Order", pass: ["YES"], fail: ["NO"] },
-  { key: "chemicalsOrganized", label: "Chemicals Clean & Organized", pass: ["YES"], fail: ["NO"] },
-];
-const RATINGS = [
-  { key: "professionalGreetingRating", label: "Professional Greeting" },
-  { key: "properExplanationRating", label: "Explanation Quality" },
-  { key: "vehicleCleanlinessRating", label: "Vehicle Cleanliness" },
-];
 
 let STATE = { items: [], itemsById: {}, managers: [], callOuts: [], timeOff: [], generatedAt: null };
 let FILTERS = { manager: "", office: "", employee: "", service: "", dateFrom: "", dateTo: "" };
 
+// normalizeDate, monthKey, escapeHtml, and all data functions are in src/dashboard.js.
 function $(s, r=document){ return r.querySelector(s); }
 function $all(s, r=document){ return Array.from(r.querySelectorAll(s)); }
-function normalizeDate(d){
-  if (!d || typeof d !== "string") return null;
-  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return m[0];
-}
 function fmtDate(d){
   const nd = normalizeDate(d);
   if (!nd) return "—";
@@ -273,84 +212,10 @@ function fmtDate(d){
 function monthKey(d){ const nd = normalizeDate(d); return nd ? nd.slice(0,7) : null; }
 function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
-function classify(item, check){
-  const v = item[check.key];
-  if (v == null || v === "") return null;
-  if (check.pass.includes(v)) return "pass";
-  if (check.fail.includes(v)) return "fail";
-  if (check.warn && check.warn.includes(v)) return "warn";
-  return "warn";
-}
-function complianceRate(items, check){
-  let pass=0, total=0;
-  items.forEach(i=>{ const c=classify(i, check); if(c){ total++; if(c==="pass") pass++; } });
-  return total ? Math.round((pass/total)*100) : null;
-}
-function overallComplianceScore(items){
-  const rates = CHECKLIST.map(c => complianceRate(items, c)).filter(r => r != null);
-  if(!rates.length) return null;
-  return Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
-}
-
-// Per-category breakdown of pass rate AND how often the field was left blank. Blanks are already
-// excluded from passRate everywhere above (a blank means "didn't apply that visit," not a fail —
-// it never drags the overall score down), but a category that's blank on most visits is itself
-// worth surfacing: it's a data-completion gap, separate from a low pass rate on a category that
-// IS being scored. Feeds the AI prompts below so they can name specific low-scoring and
-// frequently-blank categories instead of speaking in generalities.
-function categoryStats(items){
-  const total = items.length;
-  return CHECKLIST.map(c => {
-    let blank = 0;
-    items.forEach(i => { const v = i[c.key]; if (v == null || v === "") blank++; });
-    return {
-      label: c.label,
-      passRate: complianceRate(items, c),
-      blankCount: blank,
-      blankPct: total ? Math.round((blank/total)*100) : 0,
-    };
-  });
-}
-function lowScoreCategories(items, threshold=80){
-  return categoryStats(items).filter(c => c.passRate != null && c.passRate < threshold).sort((a,b)=>a.passRate-b.passRate);
-}
-function highBlankCategories(items, threshold=30){
-  return categoryStats(items).filter(c => c.blankPct >= threshold).sort((a,b)=>b.blankPct-a.blankPct);
-}
-function avgRating(items, key){
-  const vals = items.map(i=>i[key]).filter(v=>v!=null && !isNaN(v));
-  if(!vals.length) return null;
-  return (vals.reduce((a,b)=>a+b,0)/vals.length);
-}
 function stars(avg){
   if(avg==null) return '<span class="stars">—</span>';
   const full = Math.round(avg);
   return `<span class="stars">${"★".repeat(full)}${"☆".repeat(5-full)}</span> <span style="color:var(--muted);font-size:11px;">${avg.toFixed(1)}</span>`;
-}
-function flagsForItem(item){
-  return CHECKLIST.map(c=>({c, status: classify(item,c)})).filter(x=>x.status==="fail" || x.status==="warn");
-}
-function hasFollowUp(item){
-  return flagsForItem(item).length > 0 || item.correctiveActionsGiven || item.additionalTrainingNeeded;
-}
-
-// Tally how often each option in a multi-select dropdown (Insects/Products/Equipment Covered)
-// shows up across a filtered item set. "NONE" is the board's own "nothing applied" sentinel,
-// not a real option, so it's stripped before counting. Anything in allOptions that never shows
-// up at all is surfaced as "never covered" for this selection.
-function coverageBreakdown(items, key, allOptions){
-  const counts = {};
-  allOptions.forEach(o => counts[o] = 0);
-  items.forEach(i => {
-    const raw = i[key];
-    if (!raw) return;
-    raw.split(",").map(s => s.trim()).filter(l => l && l !== "NONE").forEach(l => {
-      counts[l] = (counts[l] || 0) + 1;
-    });
-  });
-  const covered = Object.keys(counts).filter(o => counts[o] > 0).sort((a,b) => counts[b]-counts[a]);
-  const neverCovered = allOptions.filter(o => counts[o] === 0);
-  return { counts, covered, neverCovered };
 }
 function coverageBlock(title, bd){
   const max = Math.max(1, ...bd.covered.map(o => bd.counts[o]));
@@ -362,23 +227,6 @@ function coverageBlock(title, bd){
   </section>`;
 }
 
-// "Customer Not Home" is a shared sentinel value on three otherwise-unrelated status columns
-// (no single column reliably/exclusively encodes it), so presence is derived by checking all
-// three rather than trusting one. Visits with no data on any of the three are counted separately
-// as unknown instead of being guessed into Home or Not Home.
-function customerPresence(item){
-  const known = [item.professionalGreeting, item.properExplanation, item.addressedConcerns].filter(v => v != null && v !== "");
-  if (!known.length) return null;
-  return known.includes("Customer Not Home") ? "Not Home" : "Home";
-}
-function presenceBreakdown(items){
-  let home = 0, notHome = 0, unknown = 0;
-  items.forEach(i => {
-    const p = customerPresence(i);
-    if (p === "Home") home++; else if (p === "Not Home") notHome++; else unknown++;
-  });
-  return { home, notHome, unknown };
-}
 function presenceBlock(items){
   const p = presenceBreakdown(items);
   const max = Math.max(1, p.home, p.notHome);
@@ -391,24 +239,6 @@ function presenceBlock(items){
   </section>`;
 }
 
-// Service-area completion status, restricted to the 7 checklist entries that have a 3-way
-// pass/warn/fail scale (Complete / Missed a few spots / Not Performed to FL Standards). Blank
-// values are explicitly excluded from the counts and the denominator — per spec, a blank means
-// that service area didn't apply on that visit, not that it failed.
-const SERVICE_AREAS = CHECKLIST.filter(c => c.warn);
-function serviceCompletionChart(items){
-  return SERVICE_AREAS.map(c => {
-    let complete = 0, missed = 0, notPerformed = 0;
-    items.forEach(i => {
-      const v = i[c.key];
-      if (v == null || v === "") return;
-      if (c.pass.includes(v)) complete++;
-      else if (c.warn.includes(v)) missed++;
-      else if (c.fail.includes(v)) notPerformed++;
-    });
-    return { label: c.label, complete, missed, notPerformed, total: complete+missed+notPerformed };
-  });
-}
 function stackBarRow(row){
   if (!row.total) return `<div class="stackBarRow"><div class="lbl" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</div><div class="sub" style="margin:0;">No data</div></div>`;
   const pc = row.complete/row.total*100, pm = row.missed/row.total*100, pn = row.notPerformed/row.total*100;
@@ -433,30 +263,6 @@ function serviceCompletionBlock(items){
   </section>`;
 }
 
-// Shared response-text extraction for every window.cowork.askClaude() call site — the bridge's
-// return shape isn't strictly typed, so this defensively handles a plain string, a {text}
-// object, or a {content:[{text}]} array.
-function extractAiText(res){
-  return (typeof res === "string") ? res
-    : (res && typeof res.text === "string") ? res.text
-    : (res && res.content) ? (Array.isArray(res.content) ? res.content.map(c=>c.text||"").join(" ") : String(res.content))
-    : "";
-}
-
-// Renders a plain-text AI response into the four (or five, for the aggregate synopsis) fixed
-// section headers as light HTML, so it reads like a structured writeup instead of a wall of text.
-function formatSynopsis(text){
-  const headers = ["Strengths Observed","Areas to Improve","Corrective Actions Given","Additional Training Needed","Trend / Areas of Concern Over Time"];
-  const lines = text.split(/\n+/).map(l=>l.trim()).filter(Boolean);
-  return lines.map(line => {
-    const h = headers.find(h => line.toLowerCase().startsWith(h.toLowerCase()));
-    if (h) {
-      const rest = line.slice(h.length).replace(/^[:\-\s]+/, "");
-      return `<h4>${escapeHtml(h)}</h4>` + (rest ? `<p>${escapeHtml(rest)}</p>` : "");
-    }
-    return `<p>${escapeHtml(line)}</p>`;
-  }).join("");
-}
 function monthLabel(key){
   if(!key) return "";
   const [y,m] = key.split("-");
@@ -548,11 +354,6 @@ function recordTable(items, emptyMsg, reasonKey){
 function kpiCard(num, label, accent){
   return `<div class="kpi ${accent?'accent':''}"><div class="num">${num}</div><div class="label">${label}</div></div>`;
 }
-function thisMonthCount(items){
-  const mk = monthKey(new Date().toISOString().slice(0,10));
-  return items.filter(i=>monthKey(i.date)===mk).length;
-}
-
 // Generic profile section for whichever single value is selected via a filter (Tech, Branch,
 // or Manager) — shown on top of whichever role view (Leadership or a manager's own page) is
 // active. Pulls every ride-along matching the active filters and spells out compliance, ratings,
@@ -876,14 +677,7 @@ function renderManager(all, managerName){
 }
 
 function getFilteredItems(){
-  let items = STATE.items.filter(i=>i.isComplete);
-  if (FILTERS.manager) items = items.filter(i => i.manager === FILTERS.manager);
-  if (FILTERS.office) items = items.filter(i => i.office === FILTERS.office);
-  if (FILTERS.employee) items = items.filter(i => i.employee === FILTERS.employee);
-  if (FILTERS.service) items = items.filter(i => i.serviceType === FILTERS.service);
-  if (FILTERS.dateFrom) items = items.filter(i => i.date && i.date >= FILTERS.dateFrom);
-  if (FILTERS.dateTo) items = items.filter(i => i.date && i.date <= FILTERS.dateTo);
-  return items;
+  return filterItems(STATE.items, FILTERS);
 }
 
 function updateActiveFiltersLabel(count, total){
@@ -897,10 +691,6 @@ function updateActiveFiltersLabel(count, total){
   // "total" is the board-wide count across every manager/tech, not this selection's own total —
   // spelled out so it isn't misread as "this person submitted `total` and only `count` are shown".
   lbl.textContent = `${count} ride-along${count===1?"":"s"} match (${parts.join(" · ")}) — out of ${total} total board-wide`;
-}
-
-function uniqueSorted(items, key){
-  return Array.from(new Set(items.map(i=>i[key]).filter(Boolean))).sort();
 }
 
 function populateFilterOptions(){
@@ -953,8 +743,8 @@ function render(){
   // Call-outs/time-off respect every currently-active filter (manager/office/employee/date
   // range) the same way the ride-along `data` set does — computed once since it's identical
   // across whichever breakdown(s) are showing.
-  const filteredCallOuts = filterRecords(STATE.callOuts);
-  const filteredTimeOff = filterRecords(STATE.timeOff);
+  const filteredCallOuts = filterRecords(STATE.callOuts, FILTERS);
+  const filteredTimeOff = filterRecords(STATE.timeOff, FILTERS);
   const breakdownHtml = breakdowns.map(b => renderBreakdownSection(b.id, b.icon, b.title, data, GROUP_DIMS[b.dim], b.dim, filteredCallOuts, filteredTimeOff)).join("");
 
   app.innerHTML = breakdownHtml + ((role === "__leadership__" || !role)
@@ -1008,45 +798,7 @@ function populateRoleSelect(){
     STATE.managers.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
 }
 
-// monday's "Name" field on this board's form is hidden, so most items are auto-titled
-// "Incoming form answer" / "New item" rather than the technician's real name. The real
-// technician identity lives in the Employee Directory board-relation column instead.
-function flattenItem(rawItem){
-  const byId = {};
-  for (const cv of rawItem.column_values) {
-    if (cv.type === "mirror") byId[cv.id] = cv.display_value;
-    else if (cv.type === "board_relation") byId[cv.id] = (cv.linked_items || []).map(li => li.name).join(", ") || null;
-    else byId[cv.id] = cv.text;
-  }
-  const out = { id: rawItem.id, itemName: rawItem.name, url: rawItem.url };
-  for (const [key, colId] of Object.entries(COLUMN_MAP)) out[key] = byId[colId] ?? null;
-  for (const key of ["professionalGreetingRating","properExplanationRating","vehicleCleanlinessRating"]) {
-    const v = out[key]; out[key] = (v && v !== "") ? Number(v) : null;
-  }
-  out.date = normalizeDate(out.date);
-  out.isComplete = Boolean(out.date && out.manager && out.employee);
-  return out;
-}
-
-// Shared shape for call-out / time-off records (different board, same idea): an employee
-// (via the same Employee Directory board-relation, so manager/office line up automatically),
-// a request type, and either a full-day timeline or a partial-day start/end. The "anchor" date
-// used for date-range filtering is the start of whichever of those is populated.
-function flattenRecord(rawItem, colMap){
-  const byId = {};
-  for (const cv of rawItem.column_values) {
-    if (cv.type === "mirror") byId[cv.id] = cv.display_value;
-    else if (cv.type === "board_relation") byId[cv.id] = (cv.linked_items || []).map(li => li.name).join(", ") || null;
-    else if (cv.type === "timeline") byId[cv.id] = cv.from ? { from: cv.from, to: cv.to } : null;
-    else byId[cv.id] = cv.text;
-  }
-  const out = { id: rawItem.id, itemName: rawItem.name };
-  for (const [key, colId] of Object.entries(colMap)) out[key] = byId[colId] ?? null;
-  out.date = normalizeDate(out.fullDayRange && out.fullDayRange.from ? out.fullDayRange.from : out.partialStart);
-  out.endDate = normalizeDate(out.fullDayRange && out.fullDayRange.to ? out.fullDayRange.to : out.partialEnd);
-  return out;
-}
-
+// flattenItem and flattenRecord are defined in src/dashboard.js.
 async function fetchAllItems(){
   const query = `query ($boardId: [ID!], $cursor: String) {
     boards(ids: $boardId) {
@@ -1115,18 +867,7 @@ async function fetchRecords(boardId, columnIds){
   return items;
 }
 
-// Applies the same active manager/office/employee/date-range FILTERS used for ride-alongs to
-// a call-out or time-off list. Call-outs/time-off don't have isComplete/serviceType, so this
-// is intentionally a smaller filter than getFilteredItems().
-function filterRecords(list){
-  let items = list;
-  if (FILTERS.manager) items = items.filter(i => i.manager === FILTERS.manager);
-  if (FILTERS.office) items = items.filter(i => i.office === FILTERS.office);
-  if (FILTERS.employee) items = items.filter(i => i.employee === FILTERS.employee);
-  if (FILTERS.dateFrom) items = items.filter(i => i.date && i.date >= FILTERS.dateFrom);
-  if (FILTERS.dateTo) items = items.filter(i => i.date && i.date <= FILTERS.dateTo);
-  return items;
-}
+// filterRecords and filterItems are defined in src/dashboard.js (they accept a filters param).
 
 async function loadData(){
   try {
