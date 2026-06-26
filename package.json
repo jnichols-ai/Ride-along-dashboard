@@ -10,10 +10,13 @@
     "test:coverage": "jest --coverage"
   },
   "devDependencies": {
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.4.1"
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/src/__tests__/**/*.test.js"]
+    "testMatch": [
+      "**/src/__tests__/**/*.test.js"
+    ]
   }
 }
